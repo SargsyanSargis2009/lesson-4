@@ -2,6 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import random
+import time
+
+NUMBER_OF_EXAMPLES = 5000
+NUMBER_OF_EPOCHS = 100000   
+LR = 0.001
 
 def train_data():
     v0 = random.uniform(5.0, 25.0)
@@ -14,7 +19,7 @@ def train_data():
     return [v0,alpha,t], [h]
 
 def generate_data():
-    examples = [train_data() for _ in range(100)]
+    examples = [train_data() for _ in range(NUMBER_OF_EXAMPLES)]
 
     x,y = zip(*examples)
 
@@ -25,20 +30,27 @@ def generate_data():
 
 def main():
 
+    device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    print(f"Device: {device}")
+
+    start = time.time()
     x, y = generate_data()
 
     model = torch.nn.Sequential(
-        torch.nn.Linear(3,16),
+        torch.nn.Linear(3,32),
         torch.nn.ReLU(),
-        torch.nn.Linear(16,1)
+        torch.nn.Linear(32,16),
+        torch.nn.ReLU(),
+        torch.nn.Linear(16,8),
+        torch.nn.ReLU(),
+        torch.nn.Linear(8,1)
     )
 
     loss = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.1)
+    optimizer = torch.optim.Adam(model.parameters(), LR)
 
-    number_of_epoches = 10000
 
-    for epoch in range(number_of_epoches):
+    for epoch in range(NUMBER_OF_EPOCHS):
         optimizer.zero_grad()
         pred = model(x)
         current_loss = loss(pred, y)
@@ -47,5 +59,26 @@ def main():
 
         print(f"Epoch: {epoch} | Loss: {current_loss.item()}")
 
+    test = [train_data() for _ in range(100)]
+
+    x_test, y_test = zip(*test)
+
+    x_test = torch.tensor(x_test, dtype=torch.float32)
+    y_test = torch.tensor(y_test, dtype=torch.float32)
+
+    with torch.no_grad():
+        pred = model(x_test).squeeze()
+
+    pred_y = pred.tolist()
+    true_y = y_test.squeeze().tolist()
+
+    plt.scatter(pred_y, true_y)
+    plt.plot([min(true_y), max(true_y)], [min(true_y), max(true_y)], color = 'red', linewidth = 5)
+    plt.grid()
+    plt.show()
+
+    end = time.time()
+
+    print(f"Time: {end - start}")
 if __name__ == "__main__":
     main()
